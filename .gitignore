@@ -1,0 +1,56 @@
+# Local planning notes (reviewed before implementation, never committed)
+PLAN.md
+TECHJAM_DECISION_AND_10H_PLAN.md
+
+# Official competition data and evaluator outputs
+data/catalog.jsonl
+data/catalog.jsonl.gz
+data/public_set.jsonl
+results.json
+results*.json
+artifacts/
+reports/private/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Generated indexes and model caches
+*.db
+*.sqlite
+*.sqlite3
+*.npz
+*.npy
+*.pkl
+*.joblib
+indexes/
+models/
+cache/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Demo recordings and large media
+*.mp4
+*.mov
+*.mkv
+*.webm
+
