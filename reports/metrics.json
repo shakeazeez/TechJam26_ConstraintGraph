@@ -1,0 +1,25 @@
+{
+  "official_starter": {
+    "hit_rate_at_10": 0.125,
+    "mrr": 0.068034,
+    "mttc": 9.81,
+    "efficiency": 0.119,
+    "technical_score": 0.10671
+  },
+  "final_public_200": {
+    "hit_rate_at_10": 0.995,
+    "mrr": 0.730768,
+    "mttc": 2.19,
+    "efficiency": 0.881,
+    "technical_score": 0.89293,
+    "runtime_tokens": 0
+  },
+  "pseudo_hidden_40": {
+    "hit_rate_at_10": 0.975,
+    "mrr": 0.705893,
+    "mttc": 2.45,
+    "efficiency": 0.855,
+    "technical_score": 0.870268,
+    "runtime_tokens": 0
+  }
+}
