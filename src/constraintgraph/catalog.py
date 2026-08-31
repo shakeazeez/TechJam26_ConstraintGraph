@@ -98,6 +98,7 @@ class ProductRecord:
     category: str
     category_terms: frozenset[str]
     title_terms: frozenset[str]
+    content_terms: frozenset[str]
     signatures: tuple[str, ...]
     attributes: dict[str, tuple[str, ...]]
     average_rating: float
@@ -154,6 +155,7 @@ class CatalogIndex:
                     category=category,
                     category_terms=frozenset(terms(" ".join(map(str, row.get("categories") or [])))),
                     title_terms=frozenset(terms(str(row.get("title") or ""))),
+                    content_terms=frozenset(terms(" ".join([str(row.get("title") or ""), category, *signatures]))),
                     signatures=signatures,
                     attributes={key: tuple(value) for key, value in attributes.items()},
                     average_rating=float(row.get("average_rating") or 0.0),
@@ -171,4 +173,3 @@ class CatalogIndex:
             return set()
         intersection = set.intersection(*posting_sets)
         return intersection or set.union(*posting_sets)
-

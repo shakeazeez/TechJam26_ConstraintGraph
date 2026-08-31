@@ -31,10 +31,22 @@ def test_reset_increments_generation_and_clears_intent() -> None:
     assert state.constraints == {}
 
 
+def test_preference_reset_preserves_category_but_clears_questions() -> None:
+    session = SessionState("s", {})
+    session.append([
+        event(EventKind.SET_CATEGORY, value="shoes"),
+        event(EventKind.ADD, "color", "black"),
+        event(EventKind.ASK, "material"),
+    ])
+    session.append([event(EventKind.RESET, value="preferences")])
+    assert session.current.category == "shoes"
+    assert session.current.constraints == {}
+    assert session.current.asked_attributes == []
+
+
 def test_sessions_are_isolated() -> None:
     first = SessionState("first", {})
     second = SessionState("second", {})
     first.append([event(EventKind.ADD, "material", "leather")])
     assert first.current.values("material") == ["leather"]
     assert second.current.values("material") == []
-

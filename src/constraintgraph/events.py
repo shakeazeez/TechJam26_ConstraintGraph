@@ -12,6 +12,7 @@ class EventKind(str, Enum):
     NO_PREFERENCE = "NO_PREFERENCE"
     RESET = "RESET"
     SET_CATEGORY = "SET_CATEGORY"
+    SET_ROUTE = "SET_ROUTE"
     ASK = "ASK"
 
 
@@ -37,4 +38,5 @@ class IntentEvent:
             raise ValueError(f"{self.kind.value} requires an attribute")
         if self.kind is EventKind.SET_CATEGORY and not self.value:
             raise ValueError("SET_CATEGORY requires a value")
-
+        if self.kind is EventKind.SET_ROUTE and self.value not in {"buying", "browsing"}:
+            raise ValueError("SET_ROUTE requires buying or browsing")

@@ -6,8 +6,10 @@ from pathlib import Path
 
 from .catalog import CatalogIndex
 from .clarification import choose_attribute
+from .events import EventKind, IntentEvent
 from .parsing import parse_message
-from .retrieval import ExactRetriever
+from .retrieval import BrowsingRetriever, ExactRetriever
+from .routing import Route, choose_route
 from .state import SessionState
 
 
@@ -29,6 +31,7 @@ class Agent:
     def __init__(self, catalog_path: str | Path = "data/catalog.jsonl") -> None:
         self.catalog = CatalogIndex.from_jsonl(catalog_path)
         self.retriever = ExactRetriever(self.catalog)
+        self.browsing_retriever = BrowsingRetriever(self.catalog)
         self.sessions: dict[str, SessionState] = {}
 
     def reset(self, session_id: str, user_profile: dict) -> None:
@@ -40,7 +43,20 @@ class Agent:
         session = self.sessions[session_id]
         session.messages.append(user_message)
         session.append(parse_message(user_message, turn, session.current))
-        result = self.retriever.search(session.current, limit=top_k)
+        decision = choose_route(user_message, session.current)
+        if session.current.route != decision.route.value:
+            session.append([
+                IntentEvent(
+                    kind=EventKind.SET_ROUTE,
+                    value=decision.route.value,
+                    turn=turn,
+                    evidence=decision.reason,
+                )
+            ])
+        if decision.route is Route.BUYING:
+            result = self.retriever.search(session.current, limit=top_k)
+        else:
+            result = self.browsing_retriever.search(session.current, session.profile, limit=top_k)
         ask_attribute, _ = choose_attribute(self.catalog, result.candidate_ids, session.current)
         if ask_attribute:
             session.record_question(ask_attribute, turn, QUESTION_TEXT[ask_attribute])
@@ -57,4 +73,3 @@ class Agent:
             "recommendations": recommendations,
             "usage": {"prompt_tokens": 0, "completion_tokens": 0},
         }
-

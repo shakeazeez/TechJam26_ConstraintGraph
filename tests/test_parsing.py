@@ -57,9 +57,9 @@ def test_official_full_override_resets_before_replacement() -> None:
         3,
     )
     assert kinds(events) == [EventKind.RESET, EventKind.ADD]
+    assert events[0].value == "preferences"
     assert events[1].attribute == "material"
 
 
 def test_low_information_rejection_is_noop() -> None:
     assert parse_message("Those options are not quite right yet.", 2) == []
-

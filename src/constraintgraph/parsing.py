@@ -115,7 +115,7 @@ def parse_message(message: str, turn: int, current: ProjectedState | None = None
     events: list[IntentEvent] = []
     full_override = bool(re.search(r"\b(?:ignore|forget)\s+my\s+earlier\s+(?:preference|requirements?|request|intent)\b", lowered))
     if full_override:
-        events.append(_event(EventKind.RESET, value="intent", turn=turn, evidence=message))
+        events.append(_event(EventKind.RESET, value="preferences", turn=turn, evidence=message))
 
     initial = re.search(r"(?:i(?:'m| am)\s+)?looking for\s+(.+?)(?:,\s+but|\.\s+|$)", text, re.I)
     if initial:
@@ -142,4 +142,3 @@ def parse_message(message: str, turn: int, current: ProjectedState | None = None
             value = direct_values[0]
             events.extend(_constraint_events(value, turn=turn, evidence=message))
     return events
-

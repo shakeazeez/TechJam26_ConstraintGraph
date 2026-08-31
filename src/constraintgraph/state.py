@@ -22,6 +22,7 @@ class Constraint:
 @dataclass(slots=True)
 class ProjectedState:
     generation: int = 0
+    route: str = "browsing"
     category: str | None = None
     constraints: dict[str, list[Constraint]] = field(default_factory=dict)
     no_preferences: set[str] = field(default_factory=set)
@@ -38,10 +39,16 @@ def reduce_events(events: Iterable[IntentEvent]) -> ProjectedState:
     for event in events:
         state.generation = max(state.generation, event.generation)
         if event.kind is EventKind.RESET:
-            if event.value in (None, "intent"):
-                state.category = None
+            if event.value in (None, "intent", "preferences"):
                 state.constraints.clear()
                 state.no_preferences.clear()
+                state.asked_attributes.clear()
+            if event.value in (None, "intent"):
+                state.category = None
+                state.route = "browsing"
+            continue
+        if event.kind is EventKind.SET_ROUTE:
+            state.route = str(event.value)
             continue
         if event.kind is EventKind.SET_CATEGORY:
             state.category = event.value
@@ -121,4 +128,3 @@ class SessionState:
         )
         self.events.append(event)
         return event
-
