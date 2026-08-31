@@ -99,6 +99,7 @@ class ProductRecord:
     category_terms: frozenset[str]
     title_terms: frozenset[str]
     content_terms: frozenset[str]
+    lexical_document: str
     signatures: tuple[str, ...]
     attributes: dict[str, tuple[str, ...]]
     average_rating: float
@@ -148,14 +149,17 @@ class CatalogIndex:
                 attributes["brand"].append(store)
             category = coarse_category(row.get("categories") or [])
             attributes["category"].append(category)
+            title = clean_text(str(row.get("title") or ""))
+            lexical_document = " ".join([title, title, category, category, *signatures, *signatures])
             products.append(
                 ProductRecord(
                     parent_asin=str(row["parent_asin"]),
-                    title=clean_text(str(row.get("title") or "")),
+                    title=title,
                     category=category,
                     category_terms=frozenset(terms(" ".join(map(str, row.get("categories") or [])))),
                     title_terms=frozenset(terms(str(row.get("title") or ""))),
                     content_terms=frozenset(terms(" ".join([str(row.get("title") or ""), category, *signatures]))),
+                    lexical_document=lexical_document,
                     signatures=signatures,
                     attributes={key: tuple(value) for key, value in attributes.items()},
                     average_rating=float(row.get("average_rating") or 0.0),

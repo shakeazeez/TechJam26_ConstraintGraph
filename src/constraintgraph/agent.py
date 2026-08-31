@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from .catalog import CatalogIndex
 from .clarification import choose_attribute
 from .events import EventKind, IntentEvent
 from .parsing import parse_message
-from .retrieval import BrowsingRetriever, ExactRetriever
+from .retrieval import BrowsingRetriever, ExactRetriever, HybridRetriever, LexicalIndex
 from .routing import Route, choose_route
 from .state import SessionState
 
@@ -32,6 +33,15 @@ class Agent:
         self.catalog = CatalogIndex.from_jsonl(catalog_path)
         self.retriever = ExactRetriever(self.catalog)
         self.browsing_retriever = BrowsingRetriever(self.catalog)
+        self.mode = os.environ.get("CONSTRAINTGRAPH_MODE", "adaptive").casefold()
+        if self.mode not in {"exact", "hybrid", "adaptive"}:
+            raise ValueError("CONSTRAINTGRAPH_MODE must be exact, hybrid, or adaptive")
+        self.lexical_index = LexicalIndex(self.catalog) if self.mode in {"hybrid", "adaptive"} else None
+        self.hybrid_retriever = (
+            HybridRetriever(self.catalog, self.retriever, self.lexical_index)
+            if self.lexical_index is not None
+            else None
+        )
         self.sessions: dict[str, SessionState] = {}
 
     def reset(self, session_id: str, user_profile: dict) -> None:
@@ -54,7 +64,11 @@ class Agent:
                 )
             ])
         if decision.route is Route.BUYING:
-            result = self.retriever.search(session.current, limit=top_k)
+            use_hybrid = self.mode == "hybrid" or (self.mode == "adaptive" and session.current.generation > 0)
+            if use_hybrid and self.hybrid_retriever is not None:
+                result = self.hybrid_retriever.search(session.current, limit=top_k)
+            else:
+                result = self.retriever.search(session.current, limit=top_k)
         else:
             result = self.browsing_retriever.search(session.current, session.profile, limit=top_k)
         ask_attribute, _ = choose_attribute(self.catalog, result.candidate_ids, session.current)
