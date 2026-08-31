@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import sqlite3
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable
 
+import joblib
 import numpy as np
 from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -61,6 +64,45 @@ class LexicalIndex:
         self.char_matrix: csr_matrix = self.char_vectorizer.fit_transform(documents).tocsr()
         self.connection = sqlite3.connect(":memory:")
         self._build_bm25()
+
+    @staticmethod
+    def _fingerprint(catalog: CatalogIndex) -> str:
+        digest = hashlib.sha256()
+        for product in catalog.products:
+            digest.update(product.parent_asin.encode())
+            digest.update(b"\0")
+        return digest.hexdigest()
+
+    @classmethod
+    def load_or_build(cls, catalog: CatalogIndex, cache_path: str | Path) -> "LexicalIndex":
+        path = Path(cache_path)
+        fingerprint = cls._fingerprint(catalog)
+        if path.exists():
+            payload = joblib.load(path)
+            if payload.get("fingerprint") == fingerprint:
+                instance = cls.__new__(cls)
+                instance.catalog = catalog
+                instance.word_vectorizer = payload["word_vectorizer"]
+                instance.char_vectorizer = payload["char_vectorizer"]
+                instance.word_matrix = payload["word_matrix"]
+                instance.char_matrix = payload["char_matrix"]
+                instance.connection = sqlite3.connect(":memory:")
+                instance._build_bm25()
+                return instance
+        instance = cls(catalog)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(
+            {
+                "fingerprint": fingerprint,
+                "word_vectorizer": instance.word_vectorizer,
+                "char_vectorizer": instance.char_vectorizer,
+                "word_matrix": instance.word_matrix,
+                "char_matrix": instance.char_matrix,
+            },
+            path,
+            compress=0,
+        )
+        return instance
 
     def _build_bm25(self) -> None:
         cursor = self.connection.cursor()

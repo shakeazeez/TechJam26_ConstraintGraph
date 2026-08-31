@@ -36,7 +36,12 @@ class Agent:
         self.mode = os.environ.get("CONSTRAINTGRAPH_MODE", "adaptive").casefold()
         if self.mode not in {"exact", "hybrid", "adaptive"}:
             raise ValueError("CONSTRAINTGRAPH_MODE must be exact, hybrid, or adaptive")
-        self.lexical_index = LexicalIndex(self.catalog) if self.mode in {"hybrid", "adaptive"} else None
+        cache_path = os.environ.get("CONSTRAINTGRAPH_INDEX_PATH", "indexes/lexical.joblib")
+        self.lexical_index = (
+            LexicalIndex.load_or_build(self.catalog, cache_path)
+            if self.mode in {"hybrid", "adaptive"}
+            else None
+        )
         self.hybrid_retriever = (
             HybridRetriever(self.catalog, self.retriever, self.lexical_index)
             if self.lexical_index is not None
