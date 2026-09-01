@@ -17,10 +17,14 @@ class BrowsingRetriever:
         profile: dict,
         limit: int = 10,
         question_pool_limit: int = 5000,
+        diagnostics: bool = False,
     ) -> RetrievalResult:
         pool = self.catalog.category_candidates(state.category or "")
+        category_pool_count = len(pool)
+        used_popularity_fallback = not pool
         if not pool:
             pool = set(self.catalog.popular_ids[:question_pool_limit])
+        retrieval_pool_count = len(pool)
         category_terms = set(terms(state.category or ""))
         profile_terms = set(terms(" ".join(map(str, profile.get("preference_tags") or []))))
         scores: dict[int, float] = {}
@@ -51,10 +55,32 @@ class BrowsingRetriever:
         if len(selected) < limit:
             selected_set = set(selected)
             selected.extend(item for item in ordered if item not in selected_set and len(selected) < limit)
+        trace = None
+        if diagnostics:
+            trace = {
+                "route": "browsing",
+                "strategy": "profile_aware_category_diversity",
+                "components": [
+                    {"name": "category retrieval", "used": bool(category_pool_count)},
+                    {"name": "profile overlap", "used": bool(profile_terms)},
+                    {"name": "popularity fallback", "used": used_popularity_fallback},
+                    {"name": "diversified result tail", "used": limit > 6 and len(ordered) > 6},
+                ],
+                "candidate_counts": {
+                    "catalog": len(self.catalog.products),
+                    "category_candidates": category_pool_count,
+                    "retrieval_pool": retrieval_pool_count,
+                    "question_pool": len(ordered),
+                    "returned": len(selected),
+                },
+                "score_components": {
+                    product_id: {"browsing_score": scores.get(product_id, 0.0)} for product_id in selected
+                },
+            }
         return RetrievalResult(
             ranked_ids=tuple(selected),
             candidate_ids=tuple(ordered),
             scores=scores,
             matched_constraints=0,
+            trace=trace,
         )
-

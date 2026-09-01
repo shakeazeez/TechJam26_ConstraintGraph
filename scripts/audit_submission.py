@@ -24,14 +24,19 @@ SECRET_PATTERNS = (
 MAX_TRACKED_BYTES = 5 * 1024 * 1024
 
 
-def tracked_files() -> list[Path]:
-    output = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT)
+def submission_files() -> list[Path]:
+    """Return tracked and non-ignored untracked files that could enter the next commit."""
+
+    output = subprocess.check_output(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT,
+    )
     return [ROOT / item.decode() for item in output.split(b"\0") if item]
 
 
 def main() -> None:
     failures: list[str] = []
-    files = tracked_files()
+    files = submission_files()
     relative = {path.relative_to(ROOT).as_posix() for path in files}
     for banned in sorted(BANNED_TRACKED & relative):
         failures.append(f"banned tracked artifact: {banned}")
@@ -46,7 +51,10 @@ def main() -> None:
             failures.append(f"possible secret in: {rel}")
     if failures:
         raise SystemExit("submission audit failed:\n- " + "\n- ".join(failures))
-    print(f"submission audit passed: {len(files)} tracked files, no banned artifacts or secret patterns")
+    print(
+        f"submission audit passed: {len(files)} tracked/non-ignored files, "
+        "no banned artifacts or secret patterns"
+    )
 
 
 if __name__ == "__main__":

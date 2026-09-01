@@ -47,4 +47,4 @@ The pseudo-hidden TechnicalScore is nearly identical to validation, supporting t
 
 ## Semantic-model decision
 
-A semantic model was deliberately not added. The deterministic system already achieved 0.975 pseudo-hidden Hit@10 and 0.8703 TechnicalScore. A downloaded model would add a new license/dependency surface, hardware variability, startup latency, and a meaningful risk of moving exact targets downward. The expected benefit did not justify that cost before submission.
+We initially expected semantic models to be necessary. The ablations showed that the frozen deterministic system already achieved 0.975 pseudo-hidden Hit@10 and 0.8703 TechnicalScore. Additional semantic complexity would add a license/dependency surface, hardware variability, startup latency, and meaningful ranking-regression risk. Without measured evidence of an official-metric improvement, that complexity was not justified before submission.

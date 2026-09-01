@@ -22,6 +22,14 @@ def test_hybrid_prefers_title_and_constraint_alignment() -> None:
     result = hybrid.search(state)
     assert catalog.products[result.ranked_ids[0]].parent_asin == "A"
 
+    traced = hybrid.search(state, diagnostics=True)
+    assert traced.ranked_ids == result.ranked_ids
+    assert traced.candidate_ids == result.candidate_ids
+    assert traced.trace is not None
+    assert traced.trace["strategy"] == "adaptive_lexical_fusion"
+    assert traced.trace["candidate_counts"]["fused_ranking_pool"] == len(traced.candidate_ids)
+    assert [item["used"] for item in traced.trace["components"]] == [True, True, True, True]
+
 
 def test_lexical_cache_round_trip(tmp_path) -> None:
     products = [

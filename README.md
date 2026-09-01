@@ -1,6 +1,6 @@
 # ConstraintGraph
 
-ConstraintGraph is a zero-LLM, stateful conversational product-retrieval agent for the TechJam 2026 Shopping Copilot challenge. It turns conversation into typed intent events, narrows the official 50,000-product catalog with exact constraint signatures, asks questions by expected information gain, and adaptively fuses BM25 with word/character TF-IDF after intent changes.
+ConstraintGraph is an adaptive shopping agent for the TechJam 2026 Shopping Copilot challenge. It turns evolving conversations into structured intent, routes Buying and Browsing differently, and asks the question that reduces uncertainty fastest. It is the intelligent orchestration layer between conversation state and product retrieval—not simply a graph search.
 
 ## Result
 
@@ -21,7 +21,7 @@ These are public-development results, not a guarantee of private evaluation perf
 
 ## Why it works
 
-The evaluator reveals requirements derived from participant-visible catalog metadata. ConstraintGraph creates a reproducible “intent signature” for every product and maps normalized phrases back to candidate products. Conversation then becomes progressive uncertainty reduction rather than open-ended text generation.
+The simulated customer progressively reveals shopping requirements generated from participant-visible catalog metadata. ConstraintGraph maps these requirements to product intent signatures and progressively reduces the candidate space. Conversation becomes structured uncertainty reduction rather than a longer search string.
 
 ```text
 customer message
@@ -33,6 +33,15 @@ customer message
   -> adaptive lexical fusion
   -> Top 10 + information-gain question
 ```
+
+### Core innovations
+
+- **Event-sourced conversational state:** every addition, removal, reset, and no-preference statement is replayable.
+- **Buying vs Browsing routing:** hard-constraint purchase intent and exploratory discovery remain genuinely different pipelines.
+- **Information-gain clarification:** the next question is the one expected to reduce the candidate pool most.
+- **Exact constraint retrieval:** normalized product intent signatures make explicit requirements dominant.
+- **Adaptive BM25 + TF-IDF:** lexical fusion activates where ambiguity warrants it instead of weakening every result.
+- **Intent-override handling:** preference resets and category changes cannot silently leak stale requirements.
 
 ### Event-sourced state
 
@@ -62,6 +71,10 @@ The agent scores every answerable attribute by expected candidate-pool reduction
 
 Exact signatures remain dominant for ordinary Buying. After an intent reset, when one replacement clue may be ambiguous, ConstraintGraph activates BM25 plus word and character TF-IDF. This policy improved held-out MRR without reducing ordinary Buying precision.
 
+### Evidence-based model choice
+
+We initially expected semantic models to be necessary. The frozen deterministic architecture already achieved 0.975 Hit@10 on the pseudo-hidden split. Adding semantic complexity would introduce dependency, latency, hardware, and ranking-regression risk without measured evidence that it improved the official metrics, so it was not justified before submission. Zero runtime LLM/API calls are therefore an efficiency and reproducibility result—not the project's main claim.
+
 ## Repository structure
 
 ```text
@@ -81,7 +94,12 @@ data/                      official data location (large/label files ignored)
 - Approximately 2 GB free RAM is recommended during index construction
 - No GPU, external model, API key, vector database, or network connection at runtime
 
-Tested locally with Python 3.10.10 on Windows and an NVIDIA GTX 1660 Ti. The runtime is CPU-based.
+Tested locally with Python 3.10.10 on Windows. The measured runtime is CPU-based; the machine has an NVIDIA GTX 1660 Ti, but ConstraintGraph does not use it.
+
+No environment variable is required. Two optional variables are supported:
+
+- `CONSTRAINTGRAPH_MODE`: `adaptive` (default), `exact`, or `hybrid`;
+- `CONSTRAINTGRAPH_INDEX_PATH`: path to the reproducible catalog-derived lexical cache.
 
 ## Setup
 
@@ -105,7 +123,7 @@ Verify the catalog against the organizer-provided SHA256 checksum before use. Th
 python scripts/prepare_indexes.py
 ```
 
-This creates `indexes/lexical.joblib`, a local ignored artifact derived only from the official catalog. A clean build takes roughly 80 seconds on the tested machine; a cached Agent startup takes roughly 39 seconds including catalog parsing and the in-memory BM25 index.
+This creates `indexes/lexical.joblib`, a local ignored artifact derived only from the official catalog. Build time varies by machine. The reproducible benchmark below separately reports cached Agent startup, including catalog parsing and the in-memory BM25 index.
 
 ## Test
 
@@ -113,7 +131,7 @@ This creates `indexes/lexical.joblib`, a local ignored artifact derived only fro
 python -m pytest
 ```
 
-Current suite: 26 tests.
+Current suite: 35 tests.
 
 ## Evaluate
 
@@ -142,10 +160,60 @@ Runtime modes can be selected through `CONSTRAINTGRAPH_MODE`:
 ## Demo
 
 ```bash
-python scripts/demo_session.py --sample-id public_0003
+python -m constraintgraph.demo --interactive
+python -m constraintgraph.demo --scenario override
+python -m constraintgraph.demo --scenario browsing
+python -m constraintgraph.demo --scenario adaptive-reset
+python -m constraintgraph.demo --scenario override --record-json artifacts/demo_override.json
 ```
 
-This runs one public session through the official evaluator while printing the customer messages, structured questions, and recommendations. It does not expose the target to the Agent.
+Demo mode visualizes the production parser events, projected intent, route and route reason, active retrieval components, real candidate collections, production information-gain utilities, selected clarification, and catalog-backed Top recommendations. Use `--show-all-results` for all returned products and `--debug-ranking` for available production score components.
+
+The built-in override scenario contains user messages only. It does not contain a target, expected events, expected products, or expected scores. **Demo diagnostics expose existing internal decisions and do not alter ranking behavior.** The demo is isolated from the official evaluator and emits nothing from the default Agent path.
+
+## Latency benchmark
+
+```bash
+python -m constraintgraph.benchmark
+```
+
+The checked-in [benchmark result](benchmark_results.json) was measured on Windows with Python 3.10.10, an Intel64 Family 6 Model 158 CPU, 17,012,723,712 bytes of RAM, and a prebuilt lexical cache:
+
+| Measurement | Result |
+|---|---:|
+| Cached cold Agent initialization | 36.059 s |
+| Warm `respond()` median | 387.504 ms |
+| Warm `respond()` p95 | 751.905 ms |
+| Warm `respond()` p99 | 766.808 ms |
+| Measured turns | 40 |
+
+The benchmark uses `time.perf_counter()`. It times Agent construction separately, performs four warm-up turns, then rotates four representative Buying, Browsing, direct-constraint, and reset/override messages. Every timed turn uses a freshly reset session; `reset()` is outside the timed region. No network operation occurs. These figures describe this machine and are not a universal latency guarantee.
+
+## Runtime and Cost
+
+- Runtime: local CPU; no GPU execution
+- Cold startup/index load: 36.059 s on the measured cached setup
+- Warm per-turn latency: 387.504 ms median, 751.905 ms p95 across the methodology above
+- External runtime API calls: 0
+- Runtime LLM prompt tokens: 0
+- Runtime LLM completion tokens: 0
+- Estimated runtime model/API cost: $0
+- Model choice: deterministic non-LLM retrieval and ranking
+
+## Submission check
+
+```bash
+python -m constraintgraph.submission_check
+python scripts/audit_submission.py
+```
+
+The first command performs read-only Agent contract, catalog-validity, uniqueness, session-isolation, catalog-mutation, documentation, and obvious secret-filename checks. It forces exact mode for its smoke test so it never creates a cache. The second scans tracked files for banned artifacts, oversized files, and common secret patterns.
+
+Capture non-secret final-run evidence with:
+
+```bash
+python -m constraintgraph.capture_environment --output artifacts/environment_capture.json
+```
 
 ## Reproducibility and integrity
 
@@ -156,6 +224,44 @@ This runs one public session through the official evaluator while printing the c
 - All recommendations are valid catalog `parent_asin` values.
 - The Agent reports zero prompt and completion tokens.
 
+## Final Evaluation Procedure
+
+1. Check out the Git commit submitted by the Devpost deadline.
+2. Record the frozen commit with `git rev-parse HEAD` and confirm the worktree state.
+3. Install dependencies exactly as documented above and record Python, dependency, OS, CPU, RAM, and environment details.
+4. Prepare the catalog-derived index without using any final-session labels.
+5. Run the unmodified official final evaluator against the frozen commit.
+6. Preserve the generated `results.json`, including per-session results.
+7. Preserve the commit hash, Python/dependency versions, hardware, environment, exact execution command, benchmark/runtime disclosure, token usage, and estimated cost.
+8. Do not modify the Agent, parser, indexes, model configuration, ranking, prompts, or any other solution component after final sessions are released.
+
+The final release may use its own dataset argument or package command. Follow that released unmodified evaluator exactly; for the current public harness, the command is:
+
+```bash
+python -m evaluator.local_evaluator --output artifacts/results.json
+```
+
+## Submission Reproducibility Checklist
+
+- [x] Agent entry point documented
+- [x] Python requirement and measured version documented
+- [x] Dependencies and installation documented
+- [x] Official evaluator command documented
+- [x] Required environment variables documented (none; optional variables listed)
+- [x] Valid catalog-only `parent_asin` values tested
+- [x] Session isolation tested
+- [x] Runtime/API/token usage and estimated cost disclosed
+- [x] Reproducible latency benchmark documented
+- [x] Limitations and future work documented
+- [x] AI-assisted development disclosed
+- [x] Official evaluator verified unmodified against the participant kit
+
+## Public submission scope
+
+Submit the tracked Python source, `starter/`, dependency manifests, config manifest, tests, documentation, reports, data attribution, `benchmark_results.json`, and `SUBMISSION_AUDIT.md`. The official rules permit lightweight required assets; this repository instead documents how to reproduce its generated index.
+
+Do not publish or submit local `.env` files, credentials, private keys, unreleased/final evaluation labels, raw public labels unless the organizer explicitly requests them, the 60 MB catalog, the 172 MB generated lexical cache, raw evaluator result logs, local `artifacts/`, planning notes, editor state, caches, videos, or the outer project ZIP. These are excluded by `.gitignore`; ambiguous files should be reviewed manually rather than deleted automatically.
+
 ## Limitations
 
 - Exact signatures benefit from the published deterministic catalog-derived message policy; unconstrained human paraphrases would require stronger semantic retrieval.
@@ -163,6 +269,13 @@ This runs one public session through the official evaluator while printing the c
 - Boundary sessions sometimes need an extra turn after the user reports no preference.
 - Sparse lexical index construction increases startup time and local disk use.
 - The public set is small; private-session behavior is the meaningful final test.
+
+## Future work
+
+- Validate against genuinely free-form human shopping paraphrases.
+- Calibrate clarification answerability on a separate conversation corpus.
+- Evaluate a lightweight semantic retriever only on a separately frozen, target-free protocol.
+- Persist more of the catalog/BM25 startup work in a portable reproducible artifact.
 
 ## Reports
 
@@ -174,7 +287,7 @@ This runs one public session through the official evaluator while printing the c
 
 ## Solo contribution
 
-Designed, implemented, tested, evaluated, and documented as a solo TechJam 2026 submission with AI-assisted development. Runtime inference is deterministic and LLM-free.
+Designed, implemented, tested, evaluated, and documented as a solo TechJam 2026 submission. **Development:** AI-assisted with Codex. **Runtime:** deterministic, with zero LLM/API calls.
 
 ## Data attribution
 

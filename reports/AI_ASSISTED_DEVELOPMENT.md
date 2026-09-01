@@ -14,7 +14,9 @@ ConstraintGraph was built by a solo participant using Codex as an engineering co
 
 Every architectural change was validated by local tests and the unmodified official evaluator. The participant-visible catalog was the only retrieval/indexing source. Public target labels were never read by the runtime Agent or encoded into rules.
 
-Runtime inference uses no LLM, external API, embedding service, or paid tokens. The system reports zero prompt and completion tokens. This separation is deliberate: AI accelerated development, while the submitted agent remains deterministic, inexpensive, auditable, and reproducible.
+**Development:** AI-assisted with Codex. **Runtime:** deterministic, with zero LLM/API calls.
+
+Runtime inference uses no external API, embedding service, or paid tokens. The system reports zero prompt and completion tokens. This separation is deliberate: AI accelerated development, while the submitted agent remains inexpensive, auditable, and reproducible.
 
 ## Development safeguards
 

@@ -6,24 +6,26 @@ ConstraintGraph
 
 ## Tagline
 
-A zero-LLM shopping copilot that turns conversation into replayable intent events and asks the question that shrinks uncertainty fastest.
+An adaptive shopping agent that turns evolving conversations into structured intent and asks the question that reduces uncertainty fastest.
 
 ## Inspiration
 
-Shopping conversations are not static queries. Requirements accumulate, disappear, and sometimes reverse completely. Most assistants hide that evolution inside a prompt. ConstraintGraph instead treats intent as inspectable state and product search as progressive uncertainty reduction.
+Shopping conversations are not static queries. Requirements accumulate, disappear, and sometimes reverse completely. Most assistants hide that evolution inside a prompt. ConstraintGraph instead treats intent as inspectable state and product search as progressive uncertainty reduction. It is the intelligent orchestration layer between the conversation and retrieval—not simply a graph search.
 
 ## What it does
 
-ConstraintGraph searches the official 50,000-product Amazon-derived catalog and recommends up to ten valid products on every turn. It:
+ConstraintGraph searches the official 50,000-product Amazon-derived catalog and recommends up to ten valid products on every turn. Its core innovations are:
 
 - routes hard-constraint Buying and exploratory Browsing through distinct pipelines;
-- stores conversation changes as typed events such as `ADD`, `REMOVE`, `NO_PREFERENCE`, and `RESET`;
+- stores conversation changes in event-sourced state using `ADD`, `REMOVE`, `NO_PREFERENCE`, and `RESET`;
 - derives product intent signatures from visible catalog metadata;
 - intersects exact constraints for high-precision Buying;
 - retrieves broad, profile-aware and diverse candidates for Browsing;
 - chooses clarification questions by expected information gain;
-- activates BM25 plus word/character TF-IDF after an intent reset;
-- runs locally with zero LLM/API tokens.
+- adaptively activates BM25 plus word/character TF-IDF after an intent reset;
+- handles intent overrides without leaking stale constraints.
+
+The result runs locally with zero LLM/API calls, which improves efficiency, auditability, and reproducibility.
 
 ## How it was built
 
@@ -58,7 +60,7 @@ A fixed 40-session pseudo-hidden split scored Hit Rate@10 0.975 and TechnicalSco
 
 The hardest state problem was intent override. A full reset incorrectly loses a still-valid category, while a partial update can leave stale constraints behind. ConstraintGraph solves this with explicit intent generations and a preference-scoped reset that clears constraints/questions while retaining a compatible category.
 
-The main ranking challenge was deciding whether semantic complexity was warranted. Full lexical fusion slightly hurt normal Buying, so the final system activates it only after an intent reset. This improved held-out MRR while protecting exact precision.
+We initially expected semantic models to be necessary. Our ablations showed otherwise: the frozen deterministic architecture achieved 0.975 pseudo-hidden Hit@10. Additional semantic complexity would add dependency, latency, hardware, and ranking-regression risk without measured evidence of an official-metric gain, so it was not justified before submission. Full lexical fusion also slightly hurt normal Buying, so the final system activates BM25 + TF-IDF only after an intent reset, improving held-out MRR while protecting exact precision.
 
 ## Accomplishments
 
@@ -71,7 +73,7 @@ The main ranking challenge was deciding whether semantic complexity was warrante
 
 ## What was learned
 
-The best “AI agent” architecture does not always require an LLM at runtime. Careful benchmark understanding, explicit state, information theory, and a layered retrieval system can be more reliable, cheaper, and easier to audit.
+An effective shopping agent needs intelligent orchestration, not complexity for its own sake. Explicit state, route-aware retrieval, information theory, and measured ablations produced a system that is reliable, inexpensive, and easy to audit.
 
 ## What is next
 
@@ -85,6 +87,34 @@ The best “AI agent” architecture does not always require an LLM at runtime. 
 
 Python 3.10, SQLite FTS5, NumPy, SciPy, scikit-learn, pytest, Git, VS Code/Codex, Amazon Reviews 2023-derived official competition data.
 
+### APIs, models, and data
+
+- Runtime APIs: none
+- Runtime model/LLM: none; deterministic non-LLM agent
+- Embedding API or service: none
+- Required credentials or environment variables: none
+- Optional local configuration: `CONSTRAINTGRAPH_MODE` and `CONSTRAINTGRAPH_INDEX_PATH`
+- Retrieval/scoring source: only the frozen 50,000-product participant-visible competition catalog derived from Amazon Reviews 2023
+- External preprocessing data: none
+
+## Runtime, cost, and reproducibility
+
+On the measured Windows/Python 3.10.10 setup with a prebuilt catalog-derived lexical cache, Agent initialization took 36.059 seconds. Across 40 isolated representative turns after four warm-ups, `respond()` latency was 387.504 ms median, 751.905 ms p95, and 766.808 ms p99. Each timed turn used a freshly reset session and `time.perf_counter()`; initialization and `reset()` were excluded from warm-turn timing.
+
+Runtime uses the local CPU, makes zero external API calls, reports zero prompt and completion tokens, and has an estimated runtime model/API cost of $0. Hardware and full dependency versions are recorded in `benchmark_results.json`.
+
+## Limitations
+
+- Exact signatures benefit from the organizer's deterministic catalog-derived message policy and are less robust to unrestricted human paraphrases.
+- Character TF-IDF handles lexical surface variation; it is not semantic understanding.
+- One of 200 public Buying sessions remained a miss after architecture freeze.
+- The cached startup still rebuilds the in-memory SQLite FTS5 table and is materially slower than an individual warm turn.
+- Public and pseudo-hidden results do not guarantee performance on the final 800 sessions.
+
+## Demonstration
+
+The presentation runs the real Agent end to end. A built-in user-message-only override scenario displays actual intent events, current projected state, route, real candidate counts, production information-gain values, the selected question, and catalog-backed recommendations. No target or expected recommendation is embedded in the demo.
+
 ## Team
 
-Solo participant. AI-assisted development is documented transparently; runtime inference is LLM-free.
+Solo participant. **Development:** AI-assisted with Codex. **Runtime:** deterministic, with zero LLM/API calls.

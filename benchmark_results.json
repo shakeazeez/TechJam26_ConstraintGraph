@@ -1,0 +1,28 @@
+{
+  "cold_start_seconds": 36.059120099998836,
+  "warm_turn_latency_ms": {
+    "median": 387.50359999903594,
+    "p95": 751.905139999144,
+    "p99": 766.8077030002314,
+    "minimum": 0.17590000061318278,
+    "maximum": 769.9636999968789
+  },
+  "n": 40,
+  "warmup_turns": 4,
+  "platform": "Windows-10-10.0.26200-SP0",
+  "os": "nt",
+  "cpu": "Intel64 Family 6 Model 158 Stepping 10, GenuineIntel",
+  "ram_bytes": 17012723712,
+  "python": "3.10.10",
+  "dependencies": {
+    "numpy": "2.2.6",
+    "scipy": "1.15.1",
+    "scikit-learn": "1.6.1",
+    "joblib": "1.4.2"
+  },
+  "runtime_mode": "adaptive",
+  "index_cache_path": "indexes\\lexical.joblib",
+  "index_cached_prebuilt": true,
+  "external_api_calls": 0,
+  "methodology": "Measured with time.perf_counter(). Cold start covers one Agent construction, including catalog parsing, cached TF-IDF loading when present, and in-memory SQLite FTS5 construction. Warm latency excludes startup and reset(), follows explicit warm-up turns, rotates four representative message types, and uses a freshly reset session for every timed respond() call. No network work occurs in timed regions."
+}
