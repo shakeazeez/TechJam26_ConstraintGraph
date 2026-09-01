@@ -131,7 +131,9 @@ This creates `indexes/lexical.joblib`, a local ignored artifact derived only fro
 python -m pytest
 ```
 
-Current suite: 35 tests.
+Current suite: 35 tests. A clean checkout without the deliberately excluded official
+`data/public_set.jsonl` runs 33 tests and skips the two split-validation tests in
+`tests/test_splits.py`. Installing the official public set enables all 35 tests.
 
 ## Evaluate
 

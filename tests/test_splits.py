@@ -3,12 +3,24 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.create_splits import create_manifest
 
 
+PUBLIC_SET_PATH = Path("data/public_set.jsonl")
+pytestmark = pytest.mark.skipif(
+    not PUBLIC_SET_PATH.exists(),
+    reason="official data/public_set.jsonl is not installed",
+)
+
+
 def _samples() -> list[dict]:
-    path = Path("data/public_set.jsonl")
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in PUBLIC_SET_PATH.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def test_split_is_deterministic_disjoint_and_exhaustive() -> None:
